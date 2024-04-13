@@ -1,0 +1,5 @@
+---
+- name: Install apache
+  ansible.builtin.package:
+    name: httpd
+    state: installed
