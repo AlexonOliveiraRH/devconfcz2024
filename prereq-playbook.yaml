@@ -1,0 +1,58 @@
+---
+- name: "Create pre-requisites for the Molecule environment"
+  hosts: localhost
+  vars:
+    collection_dir: /home/localuser/DevConfcz/ansible-collections/ansible_collections
+    role_dir: example/web/roles
+    molecule_dir: example/web/extensions/molecule
+    compacted_file: /home/localuser/molecule_default.tar.gz
+  tasks:
+
+    - name: "Create the directory structure"
+      ansible.builtin.file:
+        path: "{{ collection_dir }}"
+        state: directory
+
+    - name: "Create a custom ansible.cfg"
+      ansible.builtin.copy:
+        content: |
+                 [defaults]
+                 collections_path = home/localuser/.ansible/collections:/usr/share/ansible/collections:{{ collection_dir }}
+        dest: ~/.ansible.cfg
+
+    - name: "Check for collection dir existence"
+      stat: path={{ collection_dir }}/example/web
+      register: coldir
+
+    - name: "Check for collection dir existence"
+      stat: path={{ collection_dir }}/{{ role_dir }}/install_apache
+      register: roledir
+
+    - name: "Create a new collection skeleton"
+      ansible.builtin.shell: "ansible-galaxy collection init example.web --init-path {{ collection_dir }}/"
+      when: not coldir.stat.exists
+
+    - name: "Create a new role skeleton"
+      ansible.builtin.shell: "ansible-galaxy role init install_apache --init-path {{ collection_dir }}/{{ role_dir }}/"
+      when: not roledir.stat.exists
+
+    - name: "Create the molecule structure"
+      ansible.builtin.file:
+        path: "{{ collection_dir }}/{{ molecule_dir }}"
+        state: directory
+
+    - name: "Extract molecule content to default dir"
+      ansible.builtin.unarchive:
+        src: "{{ compacted_file }}"
+        dest: "{{ collection_dir }}/{{ molecule_dir }}"
+
+    - name: "Insert the install apache task"
+      ansible.builtin.copy:
+        content: |
+                 ---
+                 # tasks file for install_apache
+                 - name: Install apache
+                   ansible.builtin.package:
+                     name: httpd
+                     state: installed
+        dest: "{{ collection_dir }}/{{ role_dir }}/install_apache/tasks/main.yml"
